@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Content Search Tool - DVOXER Edition</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSIjMDBmZjAwIj48cGF0aCBkPSJNMCA0OEMyMy4yIDQ4IDQ4IDI0IDQ4IDBoOTZWNDhIMTkyVjcyYzAgMTIuOSAxMC4xIDI0IDI0IDI0czI0LTEwLjkgMjQtMjRWNDhoNDh2NDggNDhIMjQwdjI0YzAgMTMuMyAxMC43IDI0IDI0IDI0czI0LTEwLjcgMjQtMjR2LTI0aDQ4djk2aC00OHYtMjRjMC0xMy4zLTEwLjctMjQtMjQtMjRzLTI0IDEwLjctMjQgMjR2MjRoLTQ4VjIxNmMtMzcuNiAwLTcyIDIwLjYtOTAgNTRjLTE4LTMzLjQtNTIuNS01NC05MC01NFY5NkgwVjQ4em0xMjggMzIwdjk2Yy0xNy43IDAtMzItMTQuMy0zMi0zMlYzNjhjMC0xNy43IDE0LjMtMzIgMzItMzJ6TTE5NiA0NDh2LTMySDk2YzAtMzUuMyAyOC43LTY0IDY0LTY0aC0zMmMtMzUuMyAwLTY0LTI4LjctNjQtNjRIOTZjMC0zMS40LTEyLjM0LTYxLjUtMzQtODQtMjEuNzgtMjIuNy0zNC0zMi04NCAwVjQ0OGMwIDM1LjMgMjguNyA2NCA2NCA2NGg5NnptMTI4LTk2aDMyYzAgMzUuMy0yOC43IDY0LTY0IDY0aDMyYzM1LjMgMCA2NCAyOC43IDY0IDY0aC0zMmMzMS40IDAgNjEuNS0xMi4zIDg0LTM0IDIyLjctMjEuOCAzMi0zNCAwLTg0SDMyNHYzMnpNNDE2IDk2YzE3LjcgMCAzMiAxNC4zIDMyIDMydjEyMGMwIDE3LjctMTQuMyAzMi0zMiAzMlY5NnoiLz48L3N2Zz4=">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        :root {
+            --main-bg-color: #0a0a0a;
+            --secondary-bg-color: #121212;
+            --text-color: #cccccc;
+            --hacker-green: #0f0;
+            --hacker-green-dark: #00aa00;
+            --hacker-red: #ff3333;
+            --accent-color: #1a1a1a;
+            --border-color: #333333;
+        }
+        
+        @keyframes textShadowPulse {
+            0% { text-shadow: 0 0 5px var(--hacker-green); }
+            50% { text-shadow: 0 0 15px var(--hacker-green); }
+            100% { text-shadow: 0 0 5px var(--hacker-green); }
+        }
+        
+        @keyframes borderPulse {
+            0% { border-color: var(--hacker-green-dark); }
+            50% { border-color: var(--hacker-green); }
+            100% { border-color: var(--hacker-green-dark); }
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--main-bg-color);
+            margin: 0;
+            padding: 20px;
+            position: relative;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(transparent, rgba(0, 255, 0, 0.03), transparent);
+            pointer-events: none;
+            animation: scanline 8s linear infinite;
+            z-index: 1;
+        }
+        
+        .container {
+            background-color: var(--secondary-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .title-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .icon-container {
+            margin: 0 auto 15px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        h1 {
+            color: var(--hacker-green);
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 0;
+            animation: textShadowPulse 1.5s infinite;
+        }
+        
+        h1::before, h1::after {
+            content: "〔";
+            margin: 0 10px;
+        }
+        
+        h1::after {
+            content: "〕";
+        }
+        
+        .subtitle {
+            color: var(--text-color);
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+        
+        /* DVOXER Credit Styling - HIGHLY VISIBLE */
+        .dvoxer-credits {
+            display: none;
+        }
+        
+        .panel {
+            background-color: var(--accent-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--hacker-green);
+            font-weight: bold;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background-color: var(--main-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--hacker-green);
+            font-family: 'Courier New', monospace;
+            caret-color: var(--hacker-green);
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--hacker-green);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+        
+        button {
+            background-color: var(--secondary-bg-color);
+            color: var(--hacker-green);
+            border: 1px solid var(--hacker-green-dark);
+            border-radius: 4px;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            animation: borderPulse 2s infinite;
+        }
+        
+        button:hover {
+            background-color: rgba(0, 255, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        button::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 20px;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(30deg);
+            transition: all 0.6s;
+        }
+        
+        button:hover::after {
+            left: 120%;
+        }
+        
+        .file-drop-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 4px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        
+        .file-drop-area.active {
+            border-color: var(--hacker-green);
+            background-color: rgba(0, 255, 0, 0.05);
+        }
+        
+        .file-drop-area:hover {
+            border-color: var(--hacker-green-dark);
+            background-color: rgba(0, 255, 0, 0.03);
+        }
+        
+        #file-list {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .file-item {
+            background-color: var(--accent-color);
+            border-left: 3px solid var(--hacker-green-dark);
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-item .file-name {
+            word-break: break-all;
+        }
+        
+        .file-item .remove-file {
+            color: var(--hacker-red);
+            cursor: pointer;
+            margin-left: 15px;
+        }
+        
+        #results-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .result-item {
+            background-color: var(--accent-color);
+            border-left: 3px solid var(--hacker-green);
+            padding: 15px;
+            margin-bottom: 10px;
+            animation: fadeIn 0.5s;
+        }
+        
+        .result-item h3 {
+            color: var(--hacker-green);
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        .result-item .match-info {
+            margin-bottom: 10px;
+        }
+        
+        .result-item .match-context {
+            background-color: var(--main-bg-color);
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-size: 0.9em;
+        }
+        
+        .highlight {
+            background-color: rgba(0, 255, 0, 0.2);
+            color: var(--hacker-green);
+            padding: 0 2px;
+        }
+        
+        .progress-bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background-color: var(--hacker-green-dark);
+            background-image: linear-gradient(45deg, 
+                              rgba(0, 255, 0, 0.2) 25%, 
+                              transparent 25%, 
+                              transparent 50%, 
+                              rgba(0, 255, 0, 0.2) 50%, 
+                              rgba(0, 255, 0, 0.2) 75%, 
+                              transparent 75%, 
+                              transparent);
+            background-size: 20px 20px;
+            animation: progressAnimation 2s linear infinite;
+            transition: width 0.3s;
+        }
+        
+        @keyframes progressAnimation {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 0; }
+        }
+        
+        .status {
+            color: var(--hacker-green);
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 24px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .log-container {
+            background-color: var(--main-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            color: var(--text-color);
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .log-entry::before {
+            content: ">";
+            position: absolute;
+            left: 0;
+            color: var(--hacker-green);
+        }
+        
+        .log-success {
+            color: var(--hacker-green);
+        }
+        
+        .log-error {
+            color: var(--hacker-red);
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--main-bg-color);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--hacker-green-dark);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .typing-effect {
+            border-right: 2px solid var(--hacker-green);
+            white-space: nowrap;
+            overflow: hidden;
+            width: 0;
+            animation: typing 3.5s steps(40, end) forwards, blink 1s step-end infinite;
+        }
+        
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+        
+        @keyframes blink {
+            from, to { border-color: transparent }
+            50% { border-color: var(--hacker-green) }
+        }
+        
+        /* Matrix background effect */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        
+        /* Footer with DVOXER credit */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--hacker-green);
+            animation: textShadowPulse 2s infinite;
+        }
+        
+        .github-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        
+        .github-link a {
+            color: var(--hacker-green);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            border: 1px solid var(--hacker-green-dark);
+            border-radius: 4px;
+            transition: all 0.3s;
+            animation: borderPulse 2s infinite;
+        }
+        
+        .github-link a:hover {
+            background-color: rgba(0, 255, 0, 0.1);
+            transform: translateY(-2px);
+            letter-spacing: 1px;
+        }
+        
+        .github-icon {
+            fill: var(--hacker-green);
+            width: 24px;
+            height: 24px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-bg" class="matrix-bg"></canvas>
+    
+    <div class="container">
+        <div class="title-container">
+            <div class="icon-container">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="#00ff00" width="64" height="64">
+                    <path d="M0 48C23.2 48 48 24 48 0h96V48H192V72c0 12.9 10.1 24 24 24s24-10.9 24-24V48h48v48 48H240v24c0 13.3 10.7 24 24 24s24-10.7 24-24v-24h48v96h-48v-24c0-13.3-10.7-24-24-24s-24 10.7-24 24v24h-48V216c-37.6 0-72 20.6-90 54c-18-33.4-52.5-54-90-54V96H0V48zm128 320v96c-17.7 0-32-14.3-32-32V368c0-17.7 14.3-32 32-32zM196 448v-32H96c0-35.3 28.7-64 64-64h-32c-35.3 0-64-28.7-64-64H96c0-31.4-12.34-61.5-34-84-21.78-22.7-34-32-84 0V448c0 35.3 28.7 64 64 64h96zm128-96h32c0 35.3-28.7 64-64 64h32c35.3 0 64 28.7 64 64h-32c31.4 0 61.5-12.3 84-34 22.7-21.8 32-34 0-84H324v32zM416 96c17.7 0 32 14.3 32 32v120c0 17.7-14.3 32-32 32V96z"/>
+                </svg>
+            </div>
+            <h1>PDF SEARCH TOOL</h1>
+            <p class="subtitle typing-effect">Search for text inside PDF files...</p>
+        </div>
+        
+        <div class="panel">
+            <div id="drop-area" class="file-drop-area">
+                <p>Drop PDF files here or</p>
+                <button id="select-files">SELECT FILES</button>
+                <input type="file" id="file-input" style="display: none;" multiple accept=".pdf">
+            </div>
+            
+            <div id="file-list"></div>
+            
+            <label for="search-text">ENTER SEARCH TERM:</label>
+            <input type="text" id="search-text" placeholder="Type what you want to find...">
+            
+            <button id="search-button">INITIATE SEARCH</button>
+        </div>
+        
+        <div id="progress-container" style="display: none;">
+            <div class="status" id="status-text">Processing files...</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+        
+        <div class="log-container" id="log-container">
+            <div class="log-entry">System initialized. Ready for operation.</div>
+        </div>
+        
+        <div id="results-container"></div>
+        
+        <div class="footer">
+            <p>DEVELOPED BY DVOXER</p>
+            <div class="github-link">
+                <a href="https://github.com/DVOXER" target="_blank">
+                    <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    github.com/DVOXER
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        
+        // DOM elements
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const selectFilesBtn = document.getElementById('select-files');
+        const fileList = document.getElementById('file-list');
+        const searchText = document.getElementById('search-text');
+        const searchButton = document.getElementById('search-button');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+        const resultsContainer = document.getElementById('results-container');
+        const logContainer = document.getElementById('log-container');
+        
+        // Files array
+        let pdfs = [];
+        
+        // Add Matrix background effect
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
+        const fontSize = 10;
+        const columns = Math.floor(canvas.width / fontSize);
+        
+        const drops = [];
+        for (let i = 0; i < columns; i++) {
+            drops[i] = Math.random() * -100;
+        }
+        
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#0f0';
+            ctx.font = fontSize + 'px monospace';
+            
+            for (let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                drops[i]++;
+            }
+            
+            requestAnimationFrame(drawMatrix);
+        }
+        
+        drawMatrix();
+        
+        // Add log entry function
+        function addLogEntry(message, type = 'normal') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry' + (type !== 'normal' ? ` log-${type}` : '');
+            entry.textContent = message;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Event listeners for drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('active');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('active');
+        }
+        
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+        
+        // Handle file selection
+        selectFilesBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+        
+        // Process files
+        function handleFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].type === 'application/pdf') {
+                    pdfs.push(files[i]);
+                    addFileToList(files[i]);
+                    addLogEntry(`File added: ${files[i].name}`, 'success');
+                } else {
+                    addLogEntry(`Skipped non-PDF file: ${files[i].name}`, 'error');
+                }
+            }
+        }
+        
+        // Add file to the list
+        function addFileToList(file) {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <span class="file-name">${file.name}</span>
+                <span class="remove-file" data-name="${file.name}">✕</span>
+            `;
+            fileList.appendChild(fileItem);
+            
+            // Add event listener for file removal
+            fileItem.querySelector('.remove-file').addEventListener('click', function() {
+                const fileName = this.getAttribute('data-name');
+                pdfs = pdfs.filter(pdf => pdf.name !== fileName);
+                fileItem.remove();
+                addLogEntry(`File removed: ${fileName}`);
+            });
+        }
+        
+        // Search button click event
+        searchButton.addEventListener('click', startSearch);
+        
+        async function startSearch() {
+            const searchTerm = searchText.value.trim().toLowerCase();
+            if (searchTerm === '') {
+                addLogEntry('Please enter a search term', 'error');
+                return;
+            }
+            
+            if (pdfs.length === 0) {
+                addLogEntry('Please add at least one PDF file', 'error');
+                return;
+            }
+            
+            // Clear previous results
+            resultsContainer.innerHTML = '';
+            
+            // Show progress
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            addLogEntry(`Starting search for: "${searchTerm}"`);
+            statusText.textContent = `Searching files for "${searchTerm}"...`;
+            
+            // Process each PDF
+            const matches = [];
+            
+            for (let i = 0; i < pdfs.length; i++) {
+                const pdf = pdfs[i];
+                const fileProgress = (i / pdfs.length) * 100;
+                progressBar.style.width = fileProgress + '%';
+                statusText.textContent = `Processing file ${i+1}/${pdfs.length}: ${pdf.name}`;
+                addLogEntry(`Processing: ${pdf.name} (${i+1}/${pdfs.length})`);
+                
+                try {
+                    const fileMatches = await searchInPdf(pdf, searchTerm);
+                    if (fileMatches.length > 0) {
+                        matches.push({
+                            file: pdf,
+                            matches: fileMatches
+                        });
+                        addLogEntry(`Found ${fileMatches.length} match(es) in ${pdf.name}`, 'success');
+                    }
+                } catch (error) {
+                    addLogEntry(`Error processing ${pdf.name}: ${error.message}`, 'error');
+                }
+            }
+            
+            // Search complete
+            progressBar.style.width = '100%';
+            statusText.textContent = `Search complete. Found matches in ${matches.length} file(s).`;
+            
+            // Display results
+            displayResults(matches, searchTerm);
+            
+            // Hide progress after a delay
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+            }, 2000);
+        }
+        
+        // Search within a PDF
+        async function searchInPdf(pdf, searchTerm) {
+            return new Promise((resolve, reject) => {
+                const fileReader = new FileReader();
+                
+                fileReader.onload = async function() {
+                    try {
+                        const typedArray = new Uint8Array(this.result);
+                        const loadingTask = pdfjsLib.getDocument(typedArray);
+                        const pdfDocument = await loadingTask.promise;
+                        
+                        const matches = [];
+                        
+                        // Process each page
+                        for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+                            const page = await pdfDocument.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const textItems = textContent.items;
+                            
+                            let pageText = '';
+                            let lastY;
+                            
+                            // Process text items and reconstruct text with line breaks
+                            for (const item of textItems) {
+                                if (lastY !== item.transform[5] && pageText) {
+                                    pageText += '\n';
+                                }
+                                pageText += item.str;
+                                lastY = item.transform[5];
+                            }
+                            
+                            // Search for term in page text
+                            if (pageText.toLowerCase().includes(searchTerm)) {
+                                // Get context around the match
+                                const textLines = pageText.split('\n');
+                                const matchingLines = [];
+                                
+                                for (let i = 0; i < textLines.length; i++) {
+                                    if (textLines[i].toLowerCase().includes(searchTerm)) {
+                                        const startLine = Math.max(0, i - 1);
+                                        const endLine = Math.min(textLines.length - 1, i + 1);
+                                        
+                                        let context = '';
+                                        for (let j = startLine; j <= endLine; j++) {
+                                            context += textLines[j] + '\n';
+                                        }
+                                        
+                                        matchingLines.push(context.trim());
+                                    }
+                                }
+                                
+                                matches.push({
+                                    pageNum,
+                                    contexts: matchingLines
+                                });
+                            }
+                        }
+                        
+                        resolve(matches);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                fileReader.onerror = function() {
+                    reject(new Error('Could not read the file'));
+                };
+                
+                fileReader.readAsArrayBuffer(pdf);
+            });
+        }
+        
+        // Display search results
+        function displayResults(matches, searchTerm) {
+            if (matches.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'result-item';
+                noResults.innerHTML = `<h3>No matches found</h3>`;
+                resultsContainer.appendChild(noResults);
+                return;
+            }
+            
+            // Summary
+            const summary = document.createElement('div');
+            summary.className = 'result-item';
+            summary.innerHTML = `
+                <h3>SEARCH RESULTS</h3>
+                <p>Found matches in ${matches.length} file(s) for term: "${searchTerm}"</p>
+            `;
+            resultsContainer.appendChild(summary);
+            
+            // Add each match with a delay for animation effect
+            matches.forEach((fileMatch, fileIndex) => {
+                setTimeout(() => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    
+                    let matchesHTML = '';
+                    fileMatch.matches.forEach(match => {
+                        let contextsHTML = '';
+                        match.contexts.forEach(context => {
+                            // Highlight the search term
+                            const highlightedContext = highlightSearchTerm(context, searchTerm);
+                            contextsHTML += `<div class="match-context">${highlightedContext}</div>`;
+                        });
+                        
+                        matchesHTML += `
+                            <div class="match-info">
+                                <strong>Page ${match.pageNum}</strong>
+                                ${contextsHTML}
+                            </div>
+                        `;
+                    });
+                    
+                    resultItem.innerHTML = `
+                        <h3>${fileMatch.file.name}</h3>
+                        <p>Found ${fileMatch.matches.length} page(s) with matches</p>
+                        ${matchesHTML}
+                    `;
+                    
+                    resultsContainer.appendChild(resultItem);
+                }, fileIndex * 200); // Stagger the appearance
+            });
+        }
+        
+        // Highlight search term in context
+        function highlightSearchTerm(text, searchTerm) {
+            const regex = new RegExp(searchTerm, 'gi');
+            return text.replace(regex, match => `<span class="highlight">${match}</span>`);
+        }
+    </script>
+</body>
+</html>
